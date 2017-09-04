@@ -1,4 +1,4 @@
-OBJS = deSubGraphKit.mast deJSONKit.mast makeCycleBreaker.mast notnull.mast makeUncaller.mast DEBuilderOf.mast
+OBJS = deSubgraphKit.mast deJSONKit.mast makeCycleBreaker.mast notnull.mast makeUncaller.mast DEBuilderOf.mast
 
 test: $(OBJS)
 	monte eval uneval.mt
