@@ -3,17 +3,15 @@
 # found at http://www.opensource.org/licenses/mit-license.html ................
 exports (makeCycleBreaker)
 
-def parts.build() as DeepFrozen {
-    def makeTraversalKey := _equalizer.makeTraversalKey
+def makeTraversalKey :DeepFrozen := _equalizer.makeTraversalKey
 
-    def makeFlexCycleBreaker
-    def makeConstCycleBreaker
+object it as DeepFrozen {
 
-    def makeROCycleBreaker(roPMap) :Near {
+    to makeROCycleBreaker(roPMap) :Near {
         return object readOnlyCycleBreaker {
 
-            method diverge()        :Near { makeFlexCycleBreaker(roPMap.diverge()) }
-            method snapshot()       :Near { makeConstCycleBreaker(roPMap.snapshot()) }
+            method diverge()        :Near { it.makeFlexCycleBreaker(roPMap.diverge()) }
+            method snapshot()       :Near { it.makeConstCycleBreaker(roPMap.snapshot()) }
             # The following implementation technique is only possible because we're
             # using delegation rather than inheritance.
             method readOnly()       :Near { readOnlyCycleBreaker }
@@ -23,21 +21,21 @@ def parts.build() as DeepFrozen {
             method get(key, instead) :Any { roPMap.get(makeTraversalKey(key),instead) }
 
             method with(key, val) :Near {
-                makeConstCycleBreaker(roPMap.with(makeTraversalKey(key), val))
+                it.makeConstCycleBreaker(roPMap.with(makeTraversalKey(key), val))
             }
             method without(key) :Near {
-                makeConstCycleBreaker(roPMap.without(makeTraversalKey(key)))
+                it.makeConstCycleBreaker(roPMap.without(makeTraversalKey(key)))
             }
 
             method getPowerMap()    :Near { roPMap.snapshot() }
         }
     }
 
-    bind makeFlexCycleBreaker(flexPMap) :Near {
+    to makeFlexCycleBreaker(flexPMap) :Near {
         # Note that this is just delegation, not inheritance, in that we are not
         # initializing the template with flexCycleBreaker. By the same token,
         # the template makes no reference to <tt>self</tt>.
-        return object flexCycleBreaker extends makeROCycleBreaker(flexPMap.snapshot()) {
+        return object flexCycleBreaker extends it.makeROCycleBreaker(flexPMap.snapshot()) {
 
             to put(key, value)  :Void { flexPMap[makeTraversalKey(key)] := value }
 
@@ -47,21 +45,19 @@ def parts.build() as DeepFrozen {
         }
     }
 
-    bind makeConstCycleBreaker(constPMap) :Near {
-        return object constCycleBreaker extends makeROCycleBreaker(constPMap.snapshot()) {
+    to makeConstCycleBreaker(constPMap) :Near {
+        return object constCycleBreaker extends it.makeROCycleBreaker(constPMap.snapshot()) {
 
             method getPowerMap()    :Near { constPMap.snapshot() }
         }
     }
 
-    def EMPTYConstCycleBreaker := makeConstCycleBreaker([].asMap())
-    return [EMPTYConstCycleBreaker]
+    to EMPTYConstCycleBreaker() { return it.makeConstCycleBreaker([].asMap()) }
 }
 
 object makeCycleBreaker as DeepFrozen {
     to run() :Near {
-        def [EMPTYConstCycleBreaker] := parts.build()
-        return EMPTYConstCycleBreaker
+        return it.EMPTYConstCycleBreaker()
     }
 
     to byInverting(map) :Near {
