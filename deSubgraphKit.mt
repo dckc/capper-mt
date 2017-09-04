@@ -57,7 +57,7 @@ def makeUnevaler(uncallerList, scalpelMap :Map[Any, Str]) :Near as DeepFrozen:
                 builder.buildIbid(varID)
 
         bind generate(obj) :Node:
-            if (scalpel.get(obj, fn { null }) =~ varID :NotNull):
+            if (scalpel.fetch(obj, fn { null }) =~ varID :NotNull):
                 return genVarUse(varID)
             def promIndex :Int := builder.buildPromise()
             scalpel[obj] := promIndex

@@ -18,7 +18,7 @@ object it as DeepFrozen {
 
             method contains(key)     :Bool { roPMap.contains(makeTraversalKey(key)) }
             method get(key)          :Any { roPMap[makeTraversalKey(key)] }
-            method get(key, instead) :Any { roPMap.get(makeTraversalKey(key),instead) }
+            method fetch(key, instead) :Any { roPMap.fetch(makeTraversalKey(key),instead) }
 
             method with(key, val) :Near {
                 it.makeConstCycleBreaker(roPMap.with(makeTraversalKey(key), val))
