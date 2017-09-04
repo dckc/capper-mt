@@ -1,5 +1,4 @@
 import "makeCycleBreaker" =~ [=>makeCycleBreaker :DeepFrozen]
-import "notnull" =~ [=>NotNull :DeepFrozen]
 import "makeUncaller" =~ [=>makeUncaller :DeepFrozen, =>Uncaller :DeepFrozen]
 import "DEBuilderOf" =~ [=> DEBuilderOf :DeepFrozen]
 exports (makeUnevaler, deSubgraphKit)
@@ -25,11 +24,11 @@ def minimalScope :DeepFrozen := [
 ]
 
 def defaultScope :DeepFrozen := minimalScope
-def minimalScalpel :DeepFrozen := makeCycleBreaker.byInverting(minimalScope)
-def defaultScalpel :DeepFrozen := minimalScalpel
+def toScalpel(scope) as DeepFrozen:
+    return makeCycleBreaker.byInverting(scope)
 
-# deSubgraphKit
-def makeUnevaler(uncallerList, scalpelMap :Map[Any, Str]) :Near as DeepFrozen:
+
+def makeUnevaler(uncallerList, scalpelMap) :Near as DeepFrozen:
     return def unevaler.recognize(root, builder) :(def _Root := builder.getRootType()):
         def Node := builder.getNodeType()
         def uncallers := uncallerList.snapshot()
@@ -38,7 +37,7 @@ def makeUnevaler(uncallerList, scalpelMap :Map[Any, Str]) :Near as DeepFrozen:
         def generate
 
         def genCall(rec, verb :Str, args :List, nargs :Map[Str, Any]) :Node:
-            builder.buildCall(
+            return builder.buildCall(
                 generate(rec), verb,
                 [for arg in (args) generate(arg)],
                 [for name => arg in (nargs) name => generate(arg)])
@@ -47,27 +46,28 @@ def makeUnevaler(uncallerList, scalpelMap :Map[Any, Str]) :Near as DeepFrozen:
             if (obj =~ _:Any[Int, Double, Char, Str]) { return builder.buildLiteral(obj) }
             for uncaller in (uncallers):
                 if (uncaller.optUncall(obj) =~ [rec, verb, args, nargs]):
+                    traceln(`genCall($rec, $verb, $args, $nargs)...`)  #@@
                     return genCall(rec, verb, args, nargs)
             throw(`Can't uneval ${M.toQuote(obj)}`)
 
         def genVarUse(varID :Any[Str, Int]) :Node:
-            if (varID =~ varName :Str):
+            return if (varID =~ varName :Str):
                 builder.buildImport(varName)
             else:
                 builder.buildIbid(varID)
 
         bind generate(obj) :Node:
-            if (scalpel.fetch(obj, fn { null }) =~ varID :NotNull):
-                return genVarUse(varID)
+            traceln(`generate($obj)`)  #@@
+            escape notSeen:
+                return genVarUse(scalpel.fetch(obj, notSeen))
             def promIndex :Int := builder.buildPromise()
             scalpel[obj] := promIndex
             def rValue := genObject(obj)
-            builder.buildDefrec(promIndex + 1, rValue)
+            return builder.buildDefrec(promIndex + 1, rValue)
 
         return builder.buildRoot(generate(root))
 
-def defaultUncallers := makeUncaller.getDefaultUncallers()
-def defaultRecognizer := makeUnevaler(defaultUncallers, defaultScalpel)
+def defaultUncallers :DeepFrozen := makeUncaller.getDefaultUncallers()
 
 # /**
 #  * Unserializes/evals by building a subgraph of objects, or serializes/unevals
@@ -75,7 +75,7 @@ def defaultRecognizer := makeUnevaler(defaultUncallers, defaultScalpel)
 #  *
 #  * @author Mark S. Miller
 #  */
-object deSubgraphKit {
+object deSubgraphKit as DeepFrozen {
 
     # /**
     #  * This is the default scope used for recognizing/serializing/unevaling and
@@ -110,13 +110,13 @@ object deSubgraphKit {
     #  */
     method getDefaultScope() :Near { defaultScope }
 
-    method getMinimalScalpel() :Near { minimalScalpel }
+    method getMinimalScalpel() :Near { toScalpel(minimalScope) }
 
     # /**
     #  * XXX For now, it's the same as the minimalScalpel, but we expect to add
     #  * more bindings from the safeScope; possibly all of them.
     #  */
-    method getDefaultScalpel() :Near { defaultScalpel }
+    method getDefaultScalpel() :Near { toScalpel(defaultScope) }
 
     method getDefaultUncallers() :List[Uncaller] { defaultUncallers }
 
@@ -183,7 +183,9 @@ object deSubgraphKit {
         }
     }
 
-    method getDefaultRecognizer() :Near { defaultRecognizer }
+    method getDefaultRecognizer() :Near {
+        makeUnevaler(defaultUncallers, toScalpel(defaultScope))
+    }
 
     method makeRecognizer(optUncallers, optScalpel) :Near {
         def uncallers := if (null == optUncallers) {
@@ -192,7 +194,7 @@ object deSubgraphKit {
             optUncallers
         }
         def scalpel := if (null == optScalpel) {
-            defaultScalpel
+            toScalpel(defaultScope)
         } else {
             optScalpel
         }
@@ -203,6 +205,7 @@ object deSubgraphKit {
     #  * Uses the default recognizer
     #  */
     method recognize(root, builder) :(def _Root := builder.getRootType()) {
+        def defaultRecognizer := deSubgraphKit.getDefaultRecognizer()
         defaultRecognizer.recognize(root, builder)
     }
 }

@@ -35,7 +35,7 @@ object it as DeepFrozen {
         # Note that this is just delegation, not inheritance, in that we are not
         # initializing the template with flexCycleBreaker. By the same token,
         # the template makes no reference to <tt>self</tt>.
-        return object flexCycleBreaker extends it.makeROCycleBreaker(flexPMap.snapshot()) {
+        return object flexCycleBreaker extends it.makeROCycleBreaker(flexPMap) {  # .readOnly()
 
             to put(key, value)  :Void { flexPMap[makeTraversalKey(key)] := value }
 
